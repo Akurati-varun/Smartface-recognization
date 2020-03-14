@@ -1,0 +1,100 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <Servo.h>
+Servo myservo;
+const char* ssid = "mobile Hotspot name";
+const char* password = "password";
+
+#define ORG "give your org id"
+#define DEVICE_TYPE "Give your device type"
+#define DEVICE_ID "give your device id"
+#define TOKEN "give your token no"
+String command,nam;
+String command1;
+char server[] = ORG ".messaging.internetofthings.ibmcloud.com";
+char topic[] = "iot-2/cmd/home/fmt/String";
+char authMethod[] = "Give your token authentication method";
+char token[] = TOKEN;
+char clientId[] = "d:" ORG ":" DEVICE_TYPE ":" DEVICE_ID;
+//Serial.println(clientID);
+//void callback(char* topic, byte* payload, unsigned int payloadLength);
+WiFiClient wifiClient;
+void callback(char* topic, byte* payload, unsigned int payloadLength);
+//void callback1(char* topic, byte* payload1, unsigned int payloadLength);
+PubSubClient client(server, 1883, callback, wifiClient);
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+  myservo.attach(D1);//ATTACHES THE SRVO ON GIO1 to the servo obj
+ wifiConnect();
+  mqttConnect();
+}
+
+void loop() {
+  if (!client.loop()) {
+    mqttConnect();
+  }
+delay(100);
+}
+
+void wifiConnect() {
+  Serial.print("Connecting to "); Serial.print(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.print("nWiFi connected, IP address: "); Serial.println(WiFi.localIP());
+}
+
+void mqttConnect() {
+  if (!client.connected()) {
+    Serial.print("Reconnecting MQTT client to ");
+    Serial.println(server);
+    while (!client.connect(clientId, authMethod, token)) {
+      Serial.print(".");
+      delay(500);
+    }
+    initManagedDevice();
+    Serial.println();
+  }
+}
+void initManagedDevice() {
+  if (client.subscribe(topic)) {
+    Serial.println("subscribe to cmd OK");
+  } else {
+    Serial.println("subscribe to cmd FAILED");
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int payloadLength) {
+  Serial.print("callback invoked for topic: "); 
+  Serial.println(topic);
+
+  for (int i = 0; i < payloadLength; i++) {
+    //Serial.println((char)payload[i]);
+    command += (char)payload[i];
+  }
+Serial.println(command);
+
+ if(command == "allow")
+ {
+  int pos;
+ for(pos=0;pos<=180;pos++)
+  {
+    myservo.write(pos);//tell servo to go to position is variable'pos'
+    delay(10);
+  }
+  delay(1000);
+    for(pos=180;pos>=0;pos--)
+  {
+    myservo.write(pos);
+    delay(10);
+  }
+  Serial.println("person can enter");
+}
+ if(command=="deny"){
+  Serial.println("Unable to identify the person....plz try again");
+}
+command ="";
+}
